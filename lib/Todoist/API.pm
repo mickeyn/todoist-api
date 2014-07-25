@@ -143,5 +143,31 @@ sub project_tasks {
     return $tasks;
 }
 
+sub add_task {
+    my $self = shift;
+    my $args = shift;
+
+    exists $args->{content} or return;
+
+    my $pid = exists $args->{project_name}
+        ? $self->_name2project->{ $args->{project_name} }{id}
+        : undef;
+
+    my $params = {
+        token   => $self->token,
+        content => $args->{content},
+      ( project_id  => $pid                 )x!! $pid,
+      ( date_string => $args->{date_string} )x!! $args->{date_string},
+      ( priority    => $args->{priority}    )x!! $args->{priority},
+      ( indent      => $args->{indent}      )x!! $args->{indent},
+      ( item_order  => $args->{item_order}  )x!! $args->{item_order},
+    };
+
+    return
+        $self->ua->post_form(
+            "$base_url/addItem",
+            $params
+        );
+}
 
 1;
