@@ -44,6 +44,12 @@ has _name2project => (
     builder => '_build_name2project',
 );
 
+has _tasks => (
+    is      => 'rw',
+    isa     => sub { ref $_[0] eq 'HASH' or croak "wrong type for projects" },
+    default => sub { +{} },
+);
+
 sub _build_ua {
     HTTP::Tiny->new( keep_alive => 1 );
 }
@@ -118,6 +124,23 @@ sub project {
     catch { return +{} };
 
     return $project;
+}
+
+sub project_tasks {
+    my $self  = shift;
+    my $pname = shift;
+
+    my $pid = $self->_name2project->{$pname}{id};
+
+    my $result = $self->ua->get(
+        sprintf("$base_url/getUncompletedItems?token=%s&project_id=%d", $self->token, $pid)
+    );
+
+    my $tasks;
+    try   { $tasks = decode_json( $result->{content} ) }
+    catch { return +{} };
+
+    return $tasks;
 }
 
 
