@@ -3,11 +3,11 @@ package Todoist::API;
 use Moo;
 use Carp;
 
-use Todoist::Utils qw( read_password );
-
 use HTTP::Tiny;
 use Try::Tiny;
-use JSON::MaybeXS qw( decode_json );
+use JSON::MaybeXS  qw( decode_json );
+use List::Util     qw( first );
+use Todoist::Utils qw( read_password );
 
 my $base_url = 'https://api.todoist.com/API';
 
@@ -44,7 +44,7 @@ has _name2project => (
     builder => '_build_name2project',
 );
 
-has _tasks => (
+has _pname2tasks => (
     is      => 'rw',
     isa     => sub { ref $_[0] eq 'HASH' or croak "wrong type for projects" },
     default => sub { +{} },
@@ -126,11 +126,16 @@ sub project {
     return $project;
 }
 
-sub project_tasks {
-    my $self  = shift;
-    my $pname = shift;
+sub _update_project_tasks {
+    my $self = shift;
+    my $args = shift;
 
-    my $pid = $self->_name2project->{$pname}{id};
+    my $pname = $args->{project_name};
+    my $pid   = $args->{project_id};
+    $pname or $pid or return;
+
+    $pid   ||= $self->_name2project->{$pname}{id};
+    $pname ||= first { $_->{id} == $pid } @{ $self->projects };
 
     my $result = $self->ua->get(
         sprintf("$base_url/getUncompletedItems?token=%s&project_id=%d", $self->token, $pid)
@@ -140,7 +145,16 @@ sub project_tasks {
     try   { $tasks = decode_json( $result->{content} ) }
     catch { return +{} };
 
-    return $tasks;
+    $self->_pname2tasks->{$pname} = $tasks;
+}
+
+sub project_tasks {
+    my $self  = shift;
+    my $pname = shift;
+
+    $self->_update_project_tasks({ project_name => $pname });
+
+    return $self->_pname2tasks->{$pname};
 }
 
 sub add_task {
@@ -149,25 +163,73 @@ sub add_task {
 
     exists $args->{content} or return;
 
-    my $pid = exists $args->{project_name}
-        ? $self->_name2project->{ $args->{project_name} }{id}
-        : undef;
+    my $pid = $args->{project_id};
+    if ( ! $pid ) {
+        $args->{project_name} ||= 'Inbox';
+        $pid = $self->_name2project->{ $args->{project_name} }{id};
+    }
 
     my $params = {
-        token   => $self->token,
-        content => $args->{content},
-      ( project_id  => $pid                 )x!! $pid,
+        token      => $self->token,
+        content    => $args->{content},
+        project_id => $pid,
+        $self->_optional_task_params($args),
+    };
+
+    my $result = $self->ua->post_form(
+        "$base_url/addItem",
+        $params
+    );
+
+    my $add;
+    try   { $add = decode_json( $result->{content} ) }
+    catch { return +{} };
+
+    $result->{status} == 200 and
+        $self->_update_project_tasks({ project_id => $pid });
+
+    return $add->{id};
+}
+
+sub update_task {
+    my $self = shift;
+    my $args = shift;
+
+    exists $args->{id} or return;
+
+    my $params = {
+        token => $self->token,
+        id    => $args->{id},
+      ( content => $args->{content} )x!! $args->{content},
+        $self->_optional_task_params($args),
+    };
+
+    my $result = $self->ua->post_form(
+        "$base_url/updateItem",
+        $params
+    );
+
+    my $update;
+    try   { $update = decode_json( $result->{content} ) }
+    catch { return +{} };
+
+    $result->{status} == 200 and
+        $self->_update_project_tasks({ project_id => $update->{project_id} });
+
+    return $update->{id};
+}
+
+sub _optional_task_params {
+    my $self = shift;
+    my $args = shift;
+
+    return (
       ( date_string => $args->{date_string} )x!! $args->{date_string},
       ( priority    => $args->{priority}    )x!! $args->{priority},
       ( indent      => $args->{indent}      )x!! $args->{indent},
       ( item_order  => $args->{item_order}  )x!! $args->{item_order},
-    };
-
-    return
-        $self->ua->post_form(
-            "$base_url/addItem",
-            $params
-        );
+    );
 }
+
 
 1;
