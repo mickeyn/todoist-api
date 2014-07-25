@@ -9,7 +9,7 @@ use HTTP::Tiny;
 use Try::Tiny;
 use JSON::MaybeXS qw( decode_json );
 
-my $base_url = 'https://todoist.com/API';
+my $base_url = 'https://api.todoist.com/API';
 
 has ua => (
     is      => 'ro',
