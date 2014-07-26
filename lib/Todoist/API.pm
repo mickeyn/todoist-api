@@ -455,7 +455,6 @@ unarchiveProject
 getAllCompletedItems
 getItemsById
 updateOrders
-++ moveItems
 updateRecurringDate
 completeItems
 uncompleteItems
