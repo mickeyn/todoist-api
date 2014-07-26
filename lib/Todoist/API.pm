@@ -181,6 +181,27 @@ sub update_project {
     return $update->{id};
 }
 
+sub update_project_orders {
+    my $self = shift;
+    my $args = shift;
+
+    my $ids = $args->{ids};
+    ( $ids and ref $ids eq 'ARRAY' and @$ids > 0 ) or return;
+    grep { !/^[0-9]+$/ } @$ids and return;
+
+    my $result = $self->ua->post_form(
+        "$base_url/updateProjectOrders",
+        {
+            token        => $self->token,
+            item_id_list => encode_json $ids,
+        }
+    );
+
+    $result->{status} == 200 and $self->_refresh_projects_attr();
+
+    return $result->{status};
+}
+
 sub delete_project {
     my $self = shift;
     my $pid  = shift;
