@@ -35,6 +35,7 @@ has projects => (
     isa     => sub { ref $_[0] eq 'ARRAY' or croak "wrong type for projects" },
     lazy    => 1,
     builder => '_build_projects',
+    clearer => '_clear_projects',
 );
 
 has _name2project => (
@@ -42,6 +43,7 @@ has _name2project => (
     isa     => sub { ref $_[0] eq 'HASH' or croak "wrong type for projects" },
     lazy    => 1,
     builder => '_build_name2project',
+    clearer => '_clear_name2project',
 );
 
 has _pname2tasks => (
@@ -149,10 +151,34 @@ sub add_project {
     try   { $add = decode_json( $result->{content} ) }
     catch { return +{} };
 
+    $result->{status} == 200 and $self->_refresh_projects_attr();
+
     return $add->{id};
 }
 
-sub _update_project_tasks {
+sub delete_project {
+    my $self = shift;
+    my $pid  = shift;
+
+    (!ref $pid and $pid =~ /^[0-9]+$/) or return;
+
+    my $result = $self->ua->get(
+        sprintf("$base_url/deleteProject?token=%s&project_id=%d", $self->token, $pid)
+    );
+
+    $result->{status} == 200 and $self->_refresh_projects_attr();
+
+    return $result->{status};
+}
+
+sub _refresh_projects_attr {
+    my $self = shift;
+
+    $self->_clear_name2project;
+    $self->_clear_projects;
+}
+
+sub _refresh_project_tasks {
     my $self = shift;
     my $args = shift;
 
@@ -178,7 +204,7 @@ sub project_tasks {
     my $self  = shift;
     my $pname = shift;
 
-    $self->_update_project_tasks({ project_name => $pname });
+    $self->_refresh_project_tasks({ project_name => $pname });
 
     return $self->_pname2tasks->{$pname};
 }
@@ -212,7 +238,7 @@ sub add_task {
     catch { return +{} };
 
     $result->{status} == 200 and
-        $self->_update_project_tasks({ project_id => $pid });
+        $self->_refresh_project_tasks({ project_id => $pid });
 
     return $add->{id};
 }
@@ -248,7 +274,7 @@ sub delete_tasks {
     );
 
     for ( @pnames ) {
-        $self->_update_project_tasks({ project_name => $_ });
+        $self->_refresh_project_tasks({ project_name => $_ });
     }
 
     return $result->{status};
@@ -277,7 +303,7 @@ sub update_task {
     catch { return +{} };
 
     $result->{status} == 200 and
-        $self->_update_project_tasks({ project_id => $update->{project_id} });
+        $self->_refresh_project_tasks({ project_id => $update->{project_id} });
 
     return $update->{id};
 }
