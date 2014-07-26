@@ -106,6 +106,16 @@ sub token {
     return $self->td_user->{api_token};
 }
 
+sub ping {
+    my $self = shift;
+
+    my $result = $self->ua->get(
+        "$base_url/ping?token=" . $self->token
+    );
+
+    return 0+!!($result->{status} == 200 );
+}
+
 sub login {
     my $self = shift;
 
@@ -481,7 +491,6 @@ __END__
 
 LEFT:
 
-getTimeZones
 register
 deleteUser
 updateUser
@@ -505,7 +514,6 @@ updateNotificationSetting
 
 ? uploadFile
 
-??? ping
 ??? getRedirectLink
 ????? LABELS STUFF (payed version)
 ????? NOTES  STUFF (payed version)
