@@ -10,6 +10,7 @@ use List::Util     qw( first );
 use Todoist::Utils qw( read_password );
 
 my $base_url = 'https://api.todoist.com/API';
+my $re_id    = qr/^[0-9]+$/;
 
 has ua => (
     is      => 'ro',
@@ -201,7 +202,7 @@ sub update_project_orders {
 
     my $ids = $args->{ids};
     ( $ids and ref $ids eq 'ARRAY' and @$ids > 0 ) or return;
-    grep { !/^[0-9]+$/ } @$ids and return;
+    grep { !/$re_id/ } @$ids and return;
 
     my $result = $self->ua->post_form(
         "$base_url/updateProjectOrders",
@@ -220,7 +221,7 @@ sub delete_project {
     my $self = shift;
     my $pid  = shift;
 
-    (!ref $pid and $pid =~ /^[0-9]+$/) or return;
+    ( !ref $pid and $pid =~ /$re_id/ ) or return;
 
     my $result = $self->ua->get(
         sprintf("$base_url/deleteProject?token=%s&project_id=%d", $self->token, $pid)
@@ -307,7 +308,7 @@ sub delete_task {
     my $self = shift;
     my $id   = shift;
 
-    (!ref $id and $id =~ /^[0-9]+$/) or return;
+    ( !ref $id and $id =~ /$re_id/ ) or return;
 
     return $self->delete_tasks([ $id ]);
 }
@@ -316,7 +317,7 @@ sub delete_tasks {
     my $self = shift;
     my $ids  = shift;
 
-    (ref $ids eq 'ARRAY' and @$ids > 0) or return;
+    ( ref $ids eq 'ARRAY' and @$ids > 0 ) or return;
 
     # find matching pids for later update
     my @pnames;
