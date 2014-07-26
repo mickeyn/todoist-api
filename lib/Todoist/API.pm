@@ -87,6 +87,12 @@ sub _build_name2project {
      };
 }
 
+sub token {
+    my $self = shift;
+
+    return $self->td_user->{api_token};
+}
+
 sub login {
     my $self = shift;
 
@@ -105,10 +111,18 @@ sub login {
     return $decoded_result;
 }
 
-sub token {
+sub productivity_stats {
     my $self = shift;
 
-    return $self->td_user->{api_token};
+    my $result = $self->ua->get(
+        "$base_url/getProductivityStats?token=" . $self->token,
+    );
+
+    my $stats;
+    try   { $stats = decode_json $result->{content} }
+    catch { croak 'getting stats failed' };
+
+    return $stats;
 }
 
 sub project {
