@@ -113,7 +113,7 @@ sub project {
     my $self = shift;
     my $name = shift || return;
 
-    my $id = $self->_name2project->{$name}{id};
+    my $id = $self->_project_n2id($name);
 
     my $result = $self->ua->get(
         sprintf("$base_url/getProject?token=%s&project_id=%d", $self->token, $id)
@@ -134,7 +134,7 @@ sub _update_project_tasks {
     my $pid   = $args->{project_id};
     $pname or $pid or return;
 
-    $pid   ||= $self->_name2project->{$pname}{id};
+    $pid   ||= $self->_project_n2id($pname);
     $pname ||= first { $_->{id} == $pid } @{ $self->projects };
 
     my $result = $self->ua->get(
@@ -166,7 +166,7 @@ sub add_task {
     my $pid = $args->{project_id};
     if ( ! $pid ) {
         $args->{project_name} ||= 'Inbox';
-        $pid = $self->_name2project->{ $args->{project_name} }{id};
+        $pid = $self->_project_n2id( $args->{project_name} );
     }
 
     my $params = {
@@ -266,6 +266,13 @@ sub _optional_task_params {
       ( indent      => $args->{indent}      )x!! $args->{indent},
       ( item_order  => $args->{item_order}  )x!! $args->{item_order},
     );
+}
+
+sub _project_n2id {
+    my $self  = shift;
+    my $pname = shift;
+
+    return $self->_name2project->{$pname}{id};
 }
 
 
