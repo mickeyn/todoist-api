@@ -104,11 +104,11 @@ sub login {
     );
     undef $passwd;
 
-    my $decoded_result;
-    try   { $decoded_result = decode_json $result->{content} }
+    my $login;
+    try   { $login = decode_json $result->{content} }
     catch { croak 'login failed' };
 
-    return $decoded_result;
+    return $login;
 }
 
 sub productivity_stats {
@@ -400,3 +400,39 @@ sub _project_n2id {
 
 
 1;
+
+__END__
+
+LEFT:
+
+loginWithGoole
+getTimeZones
+register
+deleteUser
+updateUser
++ updateAvatar
+
+getArchived
+archiveProject
+unarchiveProject
+
+getAllCompletedItems
+getItemsById
+updateOrders
+++ moveItems
+updateRecurringDate
+completeItems
+uncompleteItems
+
+getNotificationSettings
+updateNotificationSetting
+
+? query
+
+? uploadFile
+
+??? ping
+??? getRedirectLink
+????? LABELS STUFF (payed version)
+????? NOTES  STUFF (payed version)
+
