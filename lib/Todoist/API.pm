@@ -88,6 +88,18 @@ sub _build_name2project {
      };
 }
 
+sub get_timezones {
+    my $self = shift;
+
+    my $result = $self->ua->get( "$base_url/getTimezones"  );
+
+    my $tz;
+    try   { $tz = decode_json $result->{content} }
+    catch { croak 'getting timezones failed' };
+
+    return $tz;
+}
+
 sub token {
     my $self = shift;
 
