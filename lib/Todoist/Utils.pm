@@ -23,6 +23,7 @@ sub read_password {
 
     ReadMode('restore');
 
+    print "\n";
     return $pass;
 }
 

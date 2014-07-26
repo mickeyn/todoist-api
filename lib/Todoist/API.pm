@@ -364,6 +364,16 @@ sub _refresh_projects_attr {
     $self->_clear_projects;
 }
 
+sub _refresh_all_projects_tasks {
+    my $self = shift;
+
+    $self->_pname2tasks( +{} ); # clear
+
+    for ( @{ $self->projects } ) {
+        $self->_refresh_project_tasks({ id => $_->{id} });
+    }
+}
+
 sub _refresh_project_tasks {
     my $self = shift;
     my $args = shift;
@@ -406,13 +416,13 @@ sub project_tasks {
 
     $self->_refresh_project_tasks({ id => $id });
 
-
     return $self->_pname2tasks->{ $name };
 }
 
 sub tasks_by_id {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
     my $ids = $args->{ids};
     ref $ids eq 'ARRAY'       or return;
@@ -436,6 +446,7 @@ sub tasks_by_id {
 sub add_task {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
     exists $args->{content} or return;
 
@@ -462,7 +473,7 @@ sub add_task {
     catch { return +{} };
 
     $result->{status} == 200 and
-        $self->_refresh_project_tasks({ project_id => $pid });
+        $self->_refresh_project_tasks({ id => $pid });
 
     return $add->{id};
 }
@@ -498,7 +509,7 @@ sub delete_tasks {
     );
 
     for ( @pnames ) {
-        $self->_refresh_project_tasks({ project_name => $_ });
+        $self->_refresh_project_tasks({ name => $_ });
     }
 
     return $result->{status};
@@ -507,6 +518,7 @@ sub delete_tasks {
 sub update_task {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
     exists $args->{id} or return;
 
@@ -527,7 +539,7 @@ sub update_task {
     catch { return +{} };
 
     $result->{status} == 200 and
-        $self->_refresh_project_tasks({ project_id => $update->{project_id} });
+        $self->_refresh_project_tasks({ id => $update->{project_id} });
 
     return $update->{id};
 }
@@ -535,6 +547,7 @@ sub update_task {
 sub move_tasks {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
     my $to   = $args->{to}   || return;
     my $from = $args->{from} || return;
@@ -560,8 +573,61 @@ sub move_tasks {
 
     if ( $result->{status} == 200 ) {
         for ( $to, keys %{ $from } ) {
-            $self->_refresh_project_tasks({ project_id => $_ });
+            $self->_refresh_project_tasks({ id => $_ });
         }
+    }
+
+    return $result->{status};
+}
+
+sub complete_task {
+    my $self = shift;
+    my $id   = shift;
+    $id =~ /$re_id/ or return;
+
+    return $self->complete_tasks({ ids => [$id] });
+}
+
+sub uncomplete_task {
+    my $self = shift;
+    my $id   = shift;
+    $id =~ /$re_id/ or return;
+
+    return $self->uncomplete_tasks({ ids => [$id] });
+}
+
+sub complete_tasks {
+    return shift->_complete_tasks(@_, 'completeItems');
+}
+
+sub uncomplete_tasks {
+    return shift->_complete_tasks(@_, 'uncompleteItems');
+}
+
+sub _complete_tasks {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or return;
+
+    my $cmd = shift;
+
+    my $ids = $args->{ids};
+    ref $ids eq 'ARRAY' or return;
+
+    for ( @$ids ) {
+        /$re_id/ or $_ = $self->project_name2id($_) or return;
+    }
+
+    my $result = $self->ua->post_form(
+        "$base_url/$cmd",
+        {
+            token => $self->token,
+            ids   => encode_json $ids,
+        }
+    );
+
+    if ( $result->{status} == 200 ) {
+        $self->_refresh_all_projects_tasks();
     }
 
     return $result->{status};
@@ -570,6 +636,7 @@ sub move_tasks {
 sub _optional_task_params {
     my $self = shift;
     my $args = shift;
+
 
     return (
       ( date_string => $args->{date_string} )x!! $args->{date_string},
@@ -612,8 +679,6 @@ updateUser
 getAllCompletedItems
 updateOrders
 updateRecurringDate
-completeItems
-uncompleteItems
 
 getNotificationSettings
 updateNotificationSetting
