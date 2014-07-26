@@ -126,6 +126,32 @@ sub project {
     return $project;
 }
 
+sub add_project {
+    my $self = shift;
+    my $args = shift;
+
+    exists $args->{name} or return;
+
+    my $params = {
+        token => $self->token,
+        name  => $args->{name},
+        ( color  => $args->{color}  )x!! $args->{color},
+        ( indent => $args->{indent} )x!! $args->{indent},
+        ( order  => $args->{order}  )x!! $args->{order},
+    };
+
+    my $result = $self->ua->post_form(
+        "$base_url/addProject",
+        $params
+    );
+
+    my $add;
+    try   { $add = decode_json( $result->{content} ) }
+    catch { return +{} };
+
+    return $add->{id};
+}
+
 sub _update_project_tasks {
     my $self = shift;
     my $args = shift;
