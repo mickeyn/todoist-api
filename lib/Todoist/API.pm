@@ -196,6 +196,7 @@ sub project {
 sub add_project {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
     exists $args->{name} or return;
 
@@ -222,13 +223,22 @@ sub add_project {
 sub update_project {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
-    exists $args->{id} or return;
+    my $id   = $args->{id};
+    my $name = $args->{name};
+
+    if ( $id ) {
+        $id =~ /$re_id/ or return;
+    } else {
+        $name or return;
+        $id = $self->_project_n2id( $name ) || return;
+    }
 
     my $params = {
         token      => $self->token,
-        project_id => $args->{id},
-      ( name       => $args->{name} )x!! $args->{name},
+        project_id => $id,
+      ( name       => $name )x!! $name,
         $self->_optional_project_params($args),
     };
 
@@ -249,10 +259,14 @@ sub update_project {
 sub update_project_orders {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
     my $ids = $args->{ids};
     ( $ids and ref $ids eq 'ARRAY' and @$ids > 0 ) or return;
-    grep { !/$re_id/ } @$ids and return;
+
+    for ( @$ids ) {
+        /$re_id/ or $_ = $self->_project_n2id($_) or return;
+    }
 
     my $result = $self->ua->post_form(
         "$base_url/updateProjectOrders",
@@ -269,12 +283,21 @@ sub update_project_orders {
 
 sub delete_project {
     my $self = shift;
-    my $pid  = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or return;
 
-    ( !ref $pid and $pid =~ /$re_id/ ) or return;
+    my $id   = $args->{id};
+    my $name = $args->{name};
+
+    if ( $id ) {
+        $id =~ /$re_id/ or return;
+    } else {
+        $name or return;
+        $id = $self->_project_n2id( $name ) || return;
+    }
 
     my $result = $self->ua->get(
-        sprintf("$base_url/deleteProject?token=%s&project_id=%d", $self->token, $pid)
+        sprintf("$base_url/deleteProject?token=%s&project_id=%d", $self->token, $id)
     );
 
     $result->{status} == 200 and $self->_refresh_projects_attr();
