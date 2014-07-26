@@ -369,6 +369,41 @@ sub update_task {
     return $update->{id};
 }
 
+sub move_tasks {
+    my $self = shift;
+    my $args = shift;
+
+    my $to   = $args->{to}   || return;
+    my $from = $args->{from} || return;
+
+    $to =~ /$re_id/ or $to = $self->_project_n2id($to) or return;
+
+    for my $f ( keys %{ $from } ) {
+        ref $from->{$f} eq 'ARRAY' or return;
+        if ( $f !~ /$re_id/ ) {
+            my $k = $self->_project_n2id($f) or return;
+            $from->{$k} = delete $from->{$f};
+        }
+    }
+
+    my $result = $self->ua->post_form(
+        "$base_url/moveItems",
+        {
+            token         => $self->token,
+            project_items => encode_json $from,
+            to_project    => $to,
+        }
+    );
+
+    if ( $result->{status} == 200 ) {
+        for ( $to, keys %{ $from } ) {
+            $self->_refresh_project_tasks({ project_id => $_ });
+        }
+    }
+
+    return $result->{status};
+}
+
 sub _optional_task_params {
     my $self = shift;
     my $args = shift;
