@@ -225,20 +225,12 @@ sub update_project {
     my $args = shift;
     ref $args eq 'HASH' or return;
 
-    my $id   = $args->{id};
-    my $name = $args->{name};
-
-    if ( $id ) {
-        $id =~ /$re_id/ or return;
-    } else {
-        $name or return;
-        $id = $self->_project_n2id( $name ) || return;
-    }
+    $self->_project_update_args_n2id($args);
 
     my $params = {
         token      => $self->token,
-        project_id => $id,
-      ( name       => $name )x!! $name,
+        project_id => $args->{id},
+      ( name       => $args->{name} )x!! $args->{name},
         $self->_optional_project_params($args),
     };
 
@@ -286,23 +278,93 @@ sub delete_project {
     my $args = shift;
     ref $args eq 'HASH' or return;
 
-    my $id   = $args->{id};
-    my $name = $args->{name};
-
-    if ( $id ) {
-        $id =~ /$re_id/ or return;
-    } else {
-        $name or return;
-        $id = $self->_project_n2id( $name ) || return;
-    }
+    $self->_project_update_args_n2id($args);
 
     my $result = $self->ua->get(
-        sprintf("$base_url/deleteProject?token=%s&project_id=%d", $self->token, $id)
+        sprintf("$base_url/deleteProject?token=%s&project_id=%d",
+                $self->token, $args->{id})
     );
 
     $result->{status} == 200 and $self->_refresh_projects_attr();
 
     return $result->{status};
+}
+
+# Premium
+sub archive_project {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or return;
+
+    $self->_project_update_args_n2id($args);
+
+    my $result = $self->ua->get(
+        sprintf("$base_url/archiveProject?token=%s&project_id=%d",
+                $self->token, $args->{id})
+    );
+
+    my $archived;
+    try   { $archived = decode_json $result->{content} }
+    catch { croak 'archiving project failed' };
+
+    return $archived;
+}
+
+# Premium
+sub unarchive_project {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or return;
+
+    # can't test now - it's a Premium feature
+#    $self->_project_update_args_n2id($args);
+    my $id = $args->{id};
+    ( $id and $id =~ /$re_id/ ) or return;
+
+    my $result = $self->ua->get(
+        sprintf("$base_url/archiveProject?token=%s&project_id=%d",
+                $self->token, $id)
+    );
+
+    my $archived;
+    try   { $archived = decode_json $result->{content} }
+    catch { croak 'archiving project failed' };
+
+    return $archived;
+}
+
+# Premium
+sub get_archived_projects {
+    my $self = shift;
+
+    my $result = $self->ua->get(
+        "$base_url/getArchived?token=" . $self->token
+    );
+
+    my $archived;
+    try   { $archived = decode_json $result->{content} }
+    catch { croak 'getting archived projects failed' };
+
+    return $archived;
+}
+
+sub _project_update_args_n2id {
+    my $self = shift;
+    my $args = shift;
+
+    my $id   = $args->{id};
+    my $name = $args->{name};
+
+    if ( $id ) {
+        $id =~ /$re_id/ and return 1;
+        return 0;
+    }
+
+    $name or return 0;
+
+    $args->{id} = $self->_project_n2id( $name ) || return 0;
+
+    return 1;
 }
 
 sub _refresh_projects_attr {
@@ -315,23 +377,23 @@ sub _refresh_projects_attr {
 sub _refresh_project_tasks {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
-    my $pname = $args->{project_name};
-    my $pid   = $args->{project_id};
-    $pname or $pid or return;
+    $self->_project_update_args_n2id($args);
 
-    $pid   ||= $self->_project_n2id($pname);
-    $pname ||= first { $_->{id} == $pid } @{ $self->projects };
+    my $id   = $args->{id};
+    my $name = $args->{name};
+    $name ||= first { $_->{id} == $id } @{ $self->projects };
 
     my $result = $self->ua->get(
-        sprintf("$base_url/getUncompletedItems?token=%s&project_id=%d", $self->token, $pid)
+        sprintf("$base_url/getUncompletedItems?token=%s&project_id=%d", $self->token, $id)
     );
 
     my $tasks;
     try   { $tasks = decode_json( $result->{content} ) }
     catch { return +{} };
 
-    $self->_pname2tasks->{$pname} = $tasks;
+    $self->_pname2tasks->{$name} = $tasks;
 }
 
 sub project_tasks {
@@ -518,10 +580,6 @@ register
 deleteUser
 updateUser
 + updateAvatar
-
-getArchived
-archiveProject
-unarchiveProject
 
 getAllCompletedItems
 getItemsById
