@@ -137,9 +137,7 @@ sub add_project {
     my $params = {
         token => $self->token,
         name  => $args->{name},
-        ( color  => $args->{color}  )x!! $args->{color},
-        ( indent => $args->{indent} )x!! $args->{indent},
-        ( order  => $args->{order}  )x!! $args->{order},
+        $self->_optional_project_params($args),
     };
 
     my $result = $self->ua->post_form(
@@ -154,6 +152,33 @@ sub add_project {
     $result->{status} == 200 and $self->_refresh_projects_attr();
 
     return $add->{id};
+}
+
+sub update_project {
+    my $self = shift;
+    my $args = shift;
+
+    exists $args->{id} or return;
+
+    my $params = {
+        token      => $self->token,
+        project_id => $args->{id},
+      ( name       => $args->{name} )x!! $args->{name},
+        $self->_optional_project_params($args),
+    };
+
+    my $result = $self->ua->post_form(
+        "$base_url/updateProject",
+        $params
+    );
+
+    my $update;
+    try   { $update = decode_json( $result->{content} ) }
+    catch { return +{} };
+
+    $result->{status} == 200 and $self->_refresh_projects_attr();
+
+    return $update->{id};
 }
 
 sub delete_project {
@@ -317,6 +342,17 @@ sub _optional_task_params {
       ( priority    => $args->{priority}    )x!! $args->{priority},
       ( indent      => $args->{indent}      )x!! $args->{indent},
       ( item_order  => $args->{item_order}  )x!! $args->{item_order},
+    );
+}
+
+sub _optional_project_params {
+    my $self = shift;
+    my $args = shift;
+
+    return (
+        ( color  => $args->{color}  )x!! $args->{color},
+        ( indent => $args->{indent} )x!! $args->{indent},
+        ( order  => $args->{order}  )x!! $args->{order},
     );
 }
 
