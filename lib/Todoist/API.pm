@@ -112,6 +112,34 @@ sub login {
     return $login;
 }
 
+# TODO: wasn't testet yet
+sub login_google {
+    my $self = shift;
+    my $args = shift;
+
+    exists $args->{oauth2_token} or return;
+
+    my $result = $self->ua->post_form(
+        "$base_url/loginWithGoogle",
+        {
+            email        => $self->email,
+            oauth2_token => $args->{oauth2_token},
+          ( auto_signup  => $args->{auto_signup} )x!! exists $args->{auto_signup},
+          ( full_name    => $args->{full_name}   )x!! exists $args->{full_name},
+          ( timezone     => $args->{timezone}    )x!! exists $args->{timezone},
+          ( lang         => $args->{lang}        )x!! exists $args->{lang},
+        }
+    );
+
+    my $login;
+    try   { $login = decode_json $result->{content} }
+    catch { croak 'login failed' };
+
+    $self->td_user( $login );
+
+    return $result->{status};
+}
+
 sub productivity_stats {
     my $self = shift;
 
@@ -441,7 +469,6 @@ __END__
 
 LEFT:
 
-loginWithGoole
 getTimeZones
 register
 deleteUser
