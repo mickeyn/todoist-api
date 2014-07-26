@@ -5,7 +5,7 @@ use Carp;
 
 use HTTP::Tiny;
 use Try::Tiny;
-use JSON::MaybeXS  qw( decode_json );
+use JSON::MaybeXS  qw( decode_json encode_json );
 use List::Util     qw( first );
 use Todoist::Utils qw( read_password );
 
@@ -189,6 +189,43 @@ sub add_task {
         $self->_update_project_tasks({ project_id => $pid });
 
     return $add->{id};
+}
+
+sub delete_task {
+    my $self = shift;
+    my $id   = shift;
+
+    (!ref $id and $id =~ /^[0-9]+$/) or return;
+
+    return $self->delete_tasks([ $id ]);
+}
+
+sub delete_tasks {
+    my $self = shift;
+    my $ids  = shift;
+
+    (ref $ids eq 'ARRAY' and @$ids > 0) or return;
+
+    # find matching pids for later update
+    my @pnames;
+    for ( @$ids ) {
+        my $pname = first { $_ } keys %{ $self->_pname2tasks };
+        push @pnames => $pname;
+    }
+
+    my $result = $self->ua->post_form(
+        "$base_url/deleteItems",
+        {
+            token => $self->token,
+            ids   => encode_json $ids,
+        }
+    );
+
+    for ( @pnames ) {
+        $self->_update_project_tasks({ project_name => $_ });
+    }
+
+    return $result->{status};
 }
 
 sub update_task {
