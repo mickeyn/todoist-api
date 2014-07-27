@@ -1,11 +1,10 @@
 package Todoist::API::Task;
 
 use Moo::Role;
-
 use Carp;
-use Try::Tiny;
+
 use List::Util    qw( first );
-use JSON::MaybeXS qw( decode_json encode_json );
+use JSON::MaybeXS qw( encode_json );
 
 my $re_num = qr/^[0-9]+$/;
 
@@ -15,22 +14,13 @@ sub tasks_by_id {
     ref $args eq 'HASH' or return;
 
     my $ids = $args->{ids};
-    ref $ids eq 'ARRAY'       or return;
+    ref $ids eq 'ARRAY'        or return;
     grep { !/$re_num/ } @$ids and return;
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/getItemsById",
-        {
-            token => $self->token,
-            ids   => encode_json $ids,
-        }
-    );
-
-    my $tasks;
-    try   { $tasks = decode_json( $result->{content} ) }
-    catch { return };
-
-    return $tasks;
+    return $self->POST({
+        cmd    => 'getItemsById',
+        params => { ids => encode_json $ids },
+    });
 }
 
 sub add_task {
@@ -47,23 +37,17 @@ sub add_task {
     }
 
     my $params = {
-        token      => $self->token,
         content    => $args->{content},
         project_id => $pid,
         $self->_optional_task_params($args),
     };
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/addItem",
-        $params
-    );
+    my $add = $self->POST({
+        cmd    => 'addItem',
+        params => $params
+    });
 
-    my $add;
-    try   { $add = decode_json( $result->{content} ) }
-    catch { return +{} };
-
-    $result->{status} == 200 and
-        $self->_refresh_project_tasks({ id => $pid });
+    ref $add and $self->_refresh_project_tasks({ id => $pid });
 
     return $add->{id};
 }
@@ -90,19 +74,17 @@ sub delete_tasks {
         push @pnames => $pname;
     }
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/deleteItems",
-        {
-            token => $self->token,
-            ids   => encode_json $ids,
-        }
-    );
+    my $status = $self->POST({
+        cmd         => 'deleteItems',
+        params      => { ids => encode_json $ids },
+        status_only => 1,
+    });
 
     for ( @pnames ) {
         $self->_refresh_project_tasks({ name => $_ });
     }
 
-    return $result->{status};
+    return $status;
 }
 
 sub update_task {
@@ -113,22 +95,17 @@ sub update_task {
     exists $args->{id} or return;
 
     my $params = {
-        token => $self->token,
         id    => $args->{id},
       ( content => $args->{content} )x!! $args->{content},
         $self->_optional_task_params($args),
     };
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/updateItem",
-        $params
-    );
+    my $update = $self->POST({
+        cmd    => 'updateItem',
+        params => $params,
+    });
 
-    my $update;
-    try   { $update = decode_json( $result->{content} ) }
-    catch { return +{} };
-
-    $result->{status} == 200 and
+    ref $update and
         $self->_refresh_project_tasks({ id => $update->{project_id} });
 
     return $update->{id};
@@ -152,22 +129,24 @@ sub move_tasks {
         }
     }
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/moveItems",
-        {
-            token         => $self->token,
-            project_items => encode_json $from,
-            to_project    => $to,
-        }
-    );
+    my $params = {
+        project_items => encode_json $from,
+        to_project    => $to,
+    };
 
-    if ( $result->{status} == 200 ) {
+    my $status = $self->POST({
+        cmd         => 'moveItems',
+        params      => $params,
+        status_only => 1,
+    });
+
+    if ( $status == 200 ) {
         for ( $to, keys %{ $from } ) {
             $self->_refresh_project_tasks({ id => $_ });
         }
     }
 
-    return $result->{status};
+    return $status;
 }
 
 sub update_tasks_order {
@@ -180,20 +159,21 @@ sub update_tasks_order {
     my $ids = $args->{item_id_list};
     ref $ids eq 'ARRAY' and @$ids > 0 or return;
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/updateOrders",
-        {
-            token        => $self->token,
-            project_id   => $args->{project_id},
-            item_id_list => encode_json $ids,
-        }
-    );
+    my $params = {
+        project_id   => $args->{project_id},
+        item_id_list => encode_json $ids,
+    };
 
-    if ( $result->{status} == 200 ) {
+    my $status = $self->POST({
+        cmd         => 'updateOrders',
+        params      => $params,
+        status_only => 1,
+    });
+
+    $status == 200 and
         $self->_refresh_project_tasks({ id => $args->{project_id} });
-    }
 
-    return $result->{status};
+    return $status;
 }
 
 sub update_tasks_recurring_date {
@@ -204,20 +184,15 @@ sub update_tasks_recurring_date {
     my $ids = $args->{ids};
     ref $ids eq 'ARRAY' and @$ids > 0 or return;
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/updateRecurringDate",
-        {
-            token   => $self->token,
-            ids     => encode_json $ids,
-          ( js_date => $args->{js_date} )x!! $args->{js_date},
-        }
-    );
+    my $params = {
+        ids     => encode_json $ids,
+      ( js_date => $args->{js_date} )x!! $args->{js_date},
+    };
 
-    my $update;
-    try   { $update = decode_json( $result->{content} ) }
-    catch { croak "failed to update recurring date tasks" };
-
-    return $update;
+    return $self->POST({
+        cmd    => 'updateRecurringDate',
+        params => $params,
+    });
 }
 
 sub complete_task {
@@ -258,19 +233,16 @@ sub _complete_tasks {
         /$re_num/ or $_ = $self->project_name2id($_) or return;
     }
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/$cmd",
-        {
-            token => $self->token,
-            ids   => encode_json $ids,
-        }
-    );
+    my $status = $self->POST({
+        cmd         => $cmd,
+        params      => { ids => encode_json $ids },
+        status_only => 1,
+    });
 
-    if ( $result->{status} == 200 ) {
+    $status == 200 and
         $self->_refresh_all_projects_tasks();
-    }
 
-    return $result->{status};
+    return $status;
 }
 
 sub _optional_task_params {

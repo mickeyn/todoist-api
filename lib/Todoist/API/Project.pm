@@ -1,11 +1,10 @@
 package Todoist::API::Project;
 
 use Moo::Role;
-
 use Carp;
-use Try::Tiny;
+
 use List::Util    qw( first );
-use JSON::MaybeXS qw( decode_json encode_json );
+use JSON::MaybeXS qw( encode_json );
 
 my $re_num = qr/^[0-9]+$/;
 
@@ -34,17 +33,7 @@ has _pname2tasks => (
 sub _build_projects {
     my $self = shift;
 
-    my $result = $self->ua->get(
-        $self->base_url . "/getProjects?token=" . $self->token
-    );
-
-    my $projects;
-    try   { $projects = decode_json( $result->{content} ) }
-    catch { return +{} };
-
-    ref $projects eq 'ARRAY' or return {};
-
-    return $projects;
+    return $self->GET({ cmd => 'getProjects' });
 }
 
 sub _build_name2project {
@@ -62,15 +51,10 @@ sub project {
 
     my $id = $self->project_name2id($name);
 
-    my $result = $self->ua->get(
-        sprintf("%s/getProject?token=%s&project_id=%d", $self->base_url, $self->token, $id)
-    );
-
-    my $project;
-    try   { $project = decode_json( $result->{content} ) }
-    catch { return +{} };
-
-    return $project;
+    return $self->GET({
+        cmd    => 'getProject',
+        params => "project_id=$id",
+    });
 }
 
 sub add_project {
@@ -81,21 +65,16 @@ sub add_project {
     exists $args->{name} or return;
 
     my $params = {
-        token => $self->token,
-        name  => $args->{name},
+        name => $args->{name},
         $self->_optional_project_params($args),
     };
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/addProject",
-        $params
-    );
+    my $add = $self->POST({
+        cmd    => 'addProject',
+        params => $params
+    });
 
-    my $add;
-    try   { $add = decode_json( $result->{content} ) }
-    catch { return +{} };
-
-    $result->{status} == 200 and $self->_refresh_projects_attr();
+    ref $add and $self->_refresh_projects_attr();
 
     return $add->{id};
 }
@@ -108,22 +87,17 @@ sub update_project {
     $self->_project_add_id_if_name($args);
 
     my $params = {
-        token      => $self->token,
         project_id => $args->{id},
       ( name       => $args->{name} )x!! $args->{name},
         $self->_optional_project_params($args),
     };
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/updateProject",
-        $params
-    );
+    my $update = $self->POST({
+        cmd    => 'updateProject',
+        params => $params
+    });
 
-    my $update;
-    try   { $update = decode_json( $result->{content} ) }
-    catch { return +{} };
-
-    $result->{status} == 200 and $self->_refresh_projects_attr();
+    ref $update and $self->_refresh_projects_attr();
 
     return $update->{id};
 }
@@ -140,17 +114,15 @@ sub update_project_orders {
         /$re_num/ or $_ = $self->project_name2id($_) or return;
     }
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/updateProjectOrders",
-        {
-            token        => $self->token,
-            item_id_list => encode_json $ids,
-        }
-    );
+    my $status = $self->POST({
+        cmd         => 'updateProjectOrders',
+        params      => { item_id_list => encode_json $ids },
+        status_only => 1,
+    });
 
-    $result->{status} == 200 and $self->_refresh_projects_attr();
+    $status == 200 and $self->_refresh_projects_attr();
 
-    return $result->{status};
+    return $status;
 }
 
 sub delete_project {
@@ -160,14 +132,15 @@ sub delete_project {
 
     $self->_project_add_id_if_name($args);
 
-    my $result = $self->ua->get(
-        sprintf("%s/deleteProject?token=%s&project_id=%d",
-                $self->base_url, $self->token, $args->{id})
-    );
+    my $status = $self->GET({
+        cmd    => 'deleteProject',
+        params => 'project_id=' . $args->{id},
+        status_only => 1,
+    });
 
-    $result->{status} == 200 and $self->_refresh_projects_attr();
+    $status == 200 and $self->_refresh_projects_attr();
 
-    return $result->{status};
+    return $status;
 }
 
 sub _refresh_projects_attr {
@@ -202,14 +175,10 @@ sub _refresh_project_tasks {
         $name = $p->{name};
     }
 
-    my $result = $self->ua->get(
-        sprintf("%s/getUncompletedItems?token=%s&project_id=%d",
-                $self->base_url, $self->token, $id)
-    );
-
-    my $tasks;
-    try   { $tasks = decode_json( $result->{content} ) }
-    catch { return +{} };
+    my $tasks = $self->GET({
+        cmd    => 'getUncompletedItems',
+        params => "project_id=$id",
+    });
 
     $self->_pname2tasks->{$name} = $tasks;
 }
