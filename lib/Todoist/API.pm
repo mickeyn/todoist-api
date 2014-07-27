@@ -51,7 +51,6 @@ deleteUser
 updateUser
 + updateAvatar
 
-updateOrders
 updateRecurringDate
 
 getNotificationSettings

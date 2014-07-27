@@ -170,6 +170,32 @@ sub move_tasks {
     return $result->{status};
 }
 
+sub update_tasks_order {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or return;
+
+    $self->_project_add_id_if_name($args);
+
+    my $ids = $args->{item_id_list};
+    ref $ids eq 'ARRAY' and @$ids > 0 or return;
+
+    my $result = $self->ua->post_form(
+        $self->base_url . "/updateOrders",
+        {
+            token        => $self->token,
+            project_id   => $args->{project_id},
+            item_id_list => encode_json $ids,
+        }
+    );
+
+    if ( $result->{status} == 200 ) {
+        $self->_refresh_project_tasks({ id => $args->{project_id} });
+    }
+
+    return $result->{status};
+}
+
 sub complete_task {
     my $self = shift;
     my $id   = shift;
