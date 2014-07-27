@@ -13,9 +13,7 @@ sub archive_project {
     my $args = shift;
     ref $args eq 'HASH' or return;
 
-    if ( ! $args->{id} and $args->{name} ) {
-        $args->{id} = $self->project_name2id( $args->{name} );
-    }
+    $self->_project_add_id_if_name($args);
 
     my $result = $self->ua->get(
         sprintf("%s/archiveProject?token=%s&project_id=%d",
@@ -34,11 +32,9 @@ sub unarchive_project {
     my $args = shift;
     ref $args eq 'HASH' or return;
 
-    my $id = $args->{id};
+    $self->_project_add_id_if_name($args);
 
-    if ( ! $id and $args->{name} ) {
-        $id = $self->project_name2id( $args->{name} );
-    }
+    my $id = $args->{id};
 
     ( $id and $id =~ /$re_num/ ) or return;
 
@@ -73,10 +69,9 @@ sub get_all_completed_tasks {
     my $args = shift;
     $args and ref $args ne 'HASH' and return;
 
-    my $pid = $args->{project_id};
-    $args->{project_name} and
-        $pid = $self->project_name2id( $args->{project_name} );
+    $self->_project_add_id_if_name($args);
 
+    my $pid       = $args->{project_id};
     my $limit     = $args->{limit};
     my $from_date = $args->{from_date};
     my $js_date   = $args->{js_date};

@@ -105,9 +105,7 @@ sub update_project {
     my $args = shift;
     ref $args eq 'HASH' or return;
 
-    if ( ! $args->{id} and $args->{name} ) {
-        $args->{id} = $self->project_name2id( $args->{name} );
-    }
+    $self->_project_add_id_if_name($args);
 
     my $params = {
         token      => $self->token,
@@ -160,9 +158,7 @@ sub delete_project {
     my $args = shift;
     ref $args eq 'HASH' or return;
 
-    if ( ! $args->{id} and $args->{name} ) {
-        $args->{id} = $self->project_name2id( $args->{name} );
-    }
+    $self->_project_add_id_if_name($args);
 
     my $result = $self->ua->get(
         sprintf("%s/deleteProject?token=%s&project_id=%d",
@@ -196,12 +192,10 @@ sub _refresh_project_tasks {
     my $args = shift;
     ref $args eq 'HASH' or return;
 
+    $self->_project_add_id_if_name($args);
+
     my $id   = $args->{id};
     my $name = $args->{name};
-
-    if ( ! $id and $name ) {
-        $id = $self->project_name2id( $name );
-    }
 
     if ( ! $name ) {
         my $p = first { $_->{id} == $id } @{ $self->projects };
@@ -225,16 +219,11 @@ sub project_tasks {
     my $args = shift;
     ref $args eq 'HASH' or return;
 
-    my $id   = $args->{id};
-    my $name = $args->{name};
+    $self->_project_add_id_if_name($args);
 
-    if ( ! $id and $name ) {
-        $id = $self->project_name2id( $name );
-    }
+    $self->_refresh_project_tasks({ id => $args->{id} });
 
-    $self->_refresh_project_tasks({ id => $id });
-
-    return $self->_pname2tasks->{ $name };
+    return $self->_pname2tasks->{ $args->{name} };
 }
 
 sub project_name2id {
@@ -242,6 +231,17 @@ sub project_name2id {
     my $name = shift;
 
     return $self->_name2project->{$name}{id};
+}
+
+sub _project_add_id_if_name {
+    my $self = shift;
+    my $args = shift;
+
+    !$args->{id} and $args->{name} and
+        $args->{id} = $self->project_name2id( $args->{name} );
+
+    !$args->{project_id} and $args->{project_name} and
+        $args->{project_id} = $self->project_name2id( $args->{project_name} );
 }
 
 sub _optional_project_params {
