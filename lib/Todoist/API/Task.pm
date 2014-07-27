@@ -196,6 +196,30 @@ sub update_tasks_order {
     return $result->{status};
 }
 
+sub update_tasks_recurring_date {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or return;
+
+    my $ids = $args->{ids};
+    ref $ids eq 'ARRAY' and @$ids > 0 or return;
+
+    my $result = $self->ua->post_form(
+        $self->base_url . "/updateRecurringDate",
+        {
+            token   => $self->token,
+            ids     => encode_json $ids,
+          ( js_date => $args->{js_date} )x!! $args->{js_date},
+        }
+    );
+
+    my $update;
+    try   { $update = decode_json( $result->{content} ) }
+    catch { croak "failed to update recurring date tasks" };
+
+    return $update;
+}
+
 sub complete_task {
     my $self = shift;
     my $id   = shift;

@@ -51,8 +51,6 @@ deleteUser
 updateUser
 + updateAvatar
 
-updateRecurringDate
-
 getNotificationSettings
 updateNotificationSetting
 
