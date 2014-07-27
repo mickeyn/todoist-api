@@ -51,7 +51,6 @@ deleteUser
 updateUser
 + updateAvatar
 
-getNotificationSettings
 updateNotificationSetting
 
 ? query

@@ -104,5 +104,19 @@ sub productivity_stats {
     return $stats;
 }
 
+sub notification_settings {
+    my $self = shift;
+
+    my $result = $self->ua->get(
+        $self->base_url . "/getNotificationSettings?token=" . $self->token,
+    );
+
+    my $settings;
+    try   { $settings = decode_json $result->{content} }
+    catch { croak 'getting settings failed' };
+
+    return $settings;
+}
+
 
 1;
