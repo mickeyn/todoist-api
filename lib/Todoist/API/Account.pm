@@ -118,26 +118,53 @@ sub notification_settings {
     return $settings;
 }
 
-sub update_notification_setting {
-    my $self = shift;
-    my $args = shift;
-    ref $args eq 'HASH' or return;
+{
+    my @valid_notification_types = qw/
+        share_invitation_sent
+        share_invitation_accepted
+        share_invitation_rejected
+        user_left_project
+        user_removed_from_project
+        item_assigned
+        item_completed
+        item_uncompleted
+        note_added
+        biz_policy_disallowed_invitation
+        biz_policy_rejected_invitation
+        biz_trial_will_end
+        biz_payment_failed
+        biz_account_disabled
+        biz_invitation_created
+        biz_invitation_accepted
+        biz_invitation_rejected
+    /;
 
-    my $notification_type = $args->{notification_type} || return;
-    my $service           = $args->{service}           || return;
-    my $dont_notify       = $args->{dont_notify}       || return;
+    sub update_notification_setting {
+        my $self = shift;
+        my $args = shift;
+        ref $args eq 'HASH' or return;
 
-    my $result = $self->ua->post_form(
-        $self->base_url . "/updateNotificationSetting",
-        {
-            token             => $self->token,
-            notification_type => $notification_type,
-            service           => $service,
-            dont_notify       => $dont_notify,
-        }
-    );
+        my $notification_type = $args->{notification_type};
+        grep { $notification_type eq $_ } @valid_notification_types or return;
 
-    return $result->{status};
+        my $service = $args->{service};
+        $service eq 'email' or $service eq 'push' or return;
+
+        my $dont_notify = $args->{dont_notify};
+        $dont_notify == 0 or $dont_notify == 1 or return;
+
+        my $result = $self->ua->post_form(
+            $self->base_url . "/updateNotificationSetting",
+            {
+                token             => $self->token,
+                notification_type => $notification_type,
+                service           => $service,
+                dont_notify       => $dont_notify,
+            }
+        );
+
+        return $result->{status};
+    }
 }
 
 
