@@ -51,8 +51,6 @@ deleteUser
 updateUser
 + updateAvatar
 
-updateNotificationSetting
-
 ? query
 
 ? uploadFile

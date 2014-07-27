@@ -118,5 +118,28 @@ sub notification_settings {
     return $settings;
 }
 
+sub update_notification_setting {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or return;
+
+    my $notification_type = $args->{notification_type} || return;
+    my $service           = $args->{service}           || return;
+    my $dont_notify       = $args->{dont_notify}       || return;
+
+    my $result = $self->ua->post_form(
+        $self->base_url . "/updateNotificationSetting",
+        {
+            token             => $self->token,
+            notification_type => $notification_type,
+            service           => $service,
+            dont_notify       => $dont_notify,
+        }
+    );
+
+    return $result->{status};
+}
+
+
 
 1;
