@@ -98,6 +98,31 @@ sub register_user {
     });
 }
 
+sub delete_user {
+    my $self = shift;
+    my $args = shift;
+
+    my ( $reason, $in_background );
+    if ( $args and ref $args eq 'HASH' ) {
+        $reason        = $args->{reason};
+        $in_background = $args->{in_background};
+    }
+
+    my $passwd = read_password();
+
+    my $params = {
+        current_password  => $passwd,
+      ( reason_for_delete => $reason        )x!! $reason,
+      ( in_background     => $in_background )x!! $in_background,
+    };
+
+    return $self->POST({
+        cmd         => 'deleteUser',
+        params      => $params,
+        status_only => 1,
+    });
+}
+
 sub ping {
     my $self = shift;
 
