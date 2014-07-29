@@ -127,7 +127,6 @@ __END__
 
 LEFT:
 
-register
 deleteUser
 updateUser
 + updateAvatar

@@ -70,6 +70,34 @@ sub login_google {
     return 1;
 }
 
+sub register_user {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or croak "register_user args can only be a hash";
+
+    my $email = $args->{email};
+    $email or croak "register_user requires an email";
+
+    my $name = $args->{name};
+    $name or croak "register_user requires a full name";
+
+    my $passwd = read_password();
+
+    my $params = {
+        email     => $self->email,
+        password  => $passwd,
+        full_name => $name,
+      ( lang      => $args->{lang}     )x!! $args->{lang},
+      ( timezone  => $args->{timezone} )x!! $args->{timezone},
+    };
+
+    return $self->POST({
+        cmd      => 'register',
+        params   => $params,
+        no_token => 1,
+    });
+}
+
 sub ping {
     my $self = shift;
 
