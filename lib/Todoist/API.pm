@@ -5,7 +5,7 @@ use Carp;
 
 use HTTP::Tiny;
 use Try::Tiny;
-use JSON::MaybeXS  qw( decode_json encode_json );
+use JSON::MaybeXS  qw( decode_json );
 
 with 'Todoist::API::Account';
 with 'Todoist::API::Project';
