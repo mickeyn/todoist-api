@@ -111,8 +111,7 @@ sub _fetch {
         );
     }
 
-# TODO: return [ status, undef ] ?
-    $args->{status_only} and return $result->{status};
+    $args->{status_only} and return [ $result->{status} ];
 
     my $decoded_result;
     try   { $decoded_result = decode_json $result->{content} }
