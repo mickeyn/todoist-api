@@ -123,6 +123,33 @@ sub delete_user {
     });
 }
 
+sub update_user {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or croak 'args to update_user must be a hash';
+
+    my $passwd;
+    $args->{password} and $passwd = read_password();
+
+    my $params = {
+      ( email            => $args->{email}            )x!! $args->{email},
+      ( full_name        => $args->{name}             )x!! $args->{name},
+      ( password         => $args->{passwd}           )x!! $args->{passwd},
+      ( timezone         => $args->{timezone}         )x!! $args->{timezone},
+      ( date_format      => $args->{date_format}      )x!! $args->{date_format},
+      ( time_format      => $args->{time_format}      )x!! $args->{time_format},
+      ( start_day        => $args->{start_day}        )x!! $args->{start_day},
+      ( next_week        => $args->{next_week}        )x!! $args->{next_week},
+      ( start_page       => $args->{start_page}       )x!! $args->{start_page},
+      ( default_reminder => $args->{default_reminder} )x!! $args->{default_reminder},
+    };
+
+    return $self->POST({
+        cmd    => 'updateUser',
+        params => $params,
+    });
+}
+
 sub ping {
     my $self = shift;
 

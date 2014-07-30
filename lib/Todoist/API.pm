@@ -111,13 +111,14 @@ sub _fetch {
         );
     }
 
+# TODO: return [ status, undef ] ?
     $args->{status_only} and return $result->{status};
 
     my $decoded_result;
     try   { $decoded_result = decode_json $result->{content} }
     catch { croak "$cmd failed" };
 
-    return $decoded_result;
+    return [ $result->{status}, $decoded_result ];
 }
 
 
@@ -127,7 +128,6 @@ __END__
 
 LEFT:
 
-updateUser
 + updateAvatar
 
 ? query
