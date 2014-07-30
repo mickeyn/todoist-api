@@ -128,12 +128,8 @@ __END__
 
 LEFT:
 
-+ updateAvatar
-
 ? query
-
 ? uploadFile
-
 ??? getRedirectLink
 ????? LABELS STUFF (payed version)
 ????? NOTES  STUFF (payed version)

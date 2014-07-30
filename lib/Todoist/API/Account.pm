@@ -150,6 +150,29 @@ sub update_user {
     });
 }
 
+sub update_avatar {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or croak 'args to update_avatar must be a hash';
+
+    my $image  = $args->{image};
+    my $delete = $args->{delete};
+
+    $image or $delete or return;
+
+    # TODO: check: image must be encoded data with multipart/form-data, max 2MB
+
+    my $params = {
+        ( image  => $image  )x!! $image,
+        ( delete => $delete )x!! $delete,
+    };
+
+    return $self->POST({
+        cmd    => 'updateAvatar',
+        params => $params,
+    });
+}
+
 sub ping {
     my $self = shift;
 
