@@ -7,10 +7,13 @@ use HTTP::Tiny;
 use Try::Tiny;
 use JSON::MaybeXS  qw( decode_json );
 
-with 'Todoist::API::Account';
-with 'Todoist::API::Project';
-with 'Todoist::API::Task';
-with 'Todoist::API::Premium';
+BEGIN {
+    with qw/ Todoist::API::Role::Account
+             Todoist::API::Role::Project
+             Todoist::API::Role::Task
+             Todoist::API::Role::Premium
+           /;
+}
 
 my $base_url = 'https://api.todoist.com/API/';
 
