@@ -12,10 +12,11 @@ has email => (
 );
 
 has td_user => (
-    is      => 'rw',
+    is      => 'ro',
     isa     => sub { ref $_[0] eq 'HASH' or croak "wrong type for td_user" },
     lazy    => 1,
     builder => '_build_td_user',
+    writer  => 'set_td_user',
 );
 
 sub _build_td_user {
@@ -27,7 +28,7 @@ sub _build_td_user {
 sub token {
     my $self = shift;
 
-    return $self->td_user->{api_token};
+    return $self->set_td_user->{api_token};
 }
 
 sub login {
@@ -69,7 +70,7 @@ sub login_google {
 
     $login->[0] == 200 or croak 'login failed';
 
-    $self->td_user( $login->[1] );
+    $self->set_td_user( $login->[1] );
     return 1;
 }
 
