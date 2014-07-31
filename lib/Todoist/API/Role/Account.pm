@@ -41,8 +41,9 @@ sub login {
         no_token => 1,
     });
 
-    undef $passwd;
-    return $login;
+    $login->[0] == 200 or croak 'login failed';
+
+    return $login->[1];
 }
 
 sub login_google {
@@ -66,7 +67,9 @@ sub login_google {
         no_token => 1,
     });
 
-    $self->td_user( $login );
+    $login->[0] == 200 or croak 'login failed';
+
+    $self->td_user( $login->[1] );
     return 1;
 }
 
