@@ -28,7 +28,7 @@ sub _build_td_user {
 sub token {
     my $self = shift;
 
-    return $self->set_td_user->{api_token};
+    return $self->td_user->{api_token};
 }
 
 sub login {
