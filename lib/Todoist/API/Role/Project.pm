@@ -59,11 +59,13 @@ sub project {
 
     my $id = $self->project_name2id($name);
 
-    return $self->GET({
+    my $project = $self->GET({
         token  => $self->api_token,
         cmd    => 'getProject',
         params => { project_id => $id },
     });
+
+    return Todoist::API::Project->new( %$project );
 }
 
 sub add_project {
@@ -78,15 +80,15 @@ sub add_project {
         $self->_optional_project_params($args),
     };
 
-    my $add = $self->POST({
+    my $project = $self->POST({
         token  => $self->api_token,
         cmd    => 'addProject',
         params => $params
     });
 
-    ref $add and $self->_refresh_projects_attr();
+    ref $project and $self->_refresh_projects_attr();
 
-    return $add->{id};
+    return Todoist::API::Project->new( %$project );
 }
 
 sub update_project {

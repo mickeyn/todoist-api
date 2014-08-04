@@ -47,15 +47,15 @@ sub add_task {
         $self->_optional_task_params($args),
     };
 
-    my $add = $self->POST({
+    my $task = $self->POST({
         token  => $self->api_token,
         cmd    => 'addItem',
         params => $params
     });
 
-    ref $add and $self->_refresh_project_tasks({ id => $pid });
+    ref $task and $self->_refresh_project_tasks({ id => $pid });
 
-    return $add->{id};
+    return Todoist::API::Task->new( %$task );
 }
 
 sub delete_task {
