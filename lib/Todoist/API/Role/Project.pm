@@ -6,6 +6,8 @@ use Carp;
 use List::Util    qw( first );
 use JSON::MaybeXS qw( encode_json );
 
+use Todoist::API::Project;
+
 my $re_num = qr/^[0-9]+$/;
 
 has projects => (
@@ -33,10 +35,15 @@ has _pname2tasks => (
 sub _build_projects {
     my $self = shift;
 
-    return $self->GET({
+    my $projects = $self->GET({
         token => $self->api_token,
         cmd   => 'getProjects'
     });
+
+    return +[
+        map { Todoist::API::Project->new( %$_ ) }
+        @$projects
+    ];
 }
 
 sub _build_name2project {
