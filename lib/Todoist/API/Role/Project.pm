@@ -7,6 +7,7 @@ use List::Util    qw( first );
 use JSON::MaybeXS qw( encode_json );
 
 use Todoist::API::Project;
+use Todoist::API::Task;
 
 my $re_num = qr/^[0-9]+$/;
 
@@ -40,10 +41,7 @@ sub _build_projects {
         cmd   => 'getProjects'
     });
 
-    return +[
-        map { Todoist::API::Project->new( %$_ ) }
-        @$projects
-    ];
+    return +[ map { Todoist::API::Project->new( %$_ ) } @$projects ];
 }
 
 sub _build_name2project {
@@ -196,7 +194,10 @@ sub _refresh_project_tasks {
         params => { project_id => $id },
     });
 
-    $self->_pname2tasks->{$name} = $tasks;
+    $self->_pname2tasks->{$name} = +[
+        map { Todoist::API::Task->new( %$_ ) }
+        @$tasks
+    ];
 }
 
 sub project_tasks {

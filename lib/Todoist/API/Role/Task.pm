@@ -6,6 +6,8 @@ use Carp;
 use List::Util    qw( first );
 use JSON::MaybeXS qw( encode_json );
 
+use Todoist::API::Task;
+
 my $re_num = qr/^[0-9]+$/;
 
 sub tasks_by_id {
@@ -17,11 +19,13 @@ sub tasks_by_id {
     ref $ids eq 'ARRAY'        or return;
     grep { !/$re_num/ } @$ids and return;
 
-    return $self->POST({
+    my $tasks = $self->POST({
         token  => $self->api_token,
         cmd    => 'getItemsById',
         params => { ids => encode_json $ids },
     });
+
+    return +[ map { Todoist::API::Task->new( %$_ ) } @$tasks ];
 }
 
 sub add_task {
