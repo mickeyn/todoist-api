@@ -5,103 +5,6 @@ use Carp;
 
 use Todoist::Utils qw( read_password );
 
-has email => (
-    is       => 'ro',
-    isa      => sub { !ref $_[0] or croak "wrong type for email" },
-    required => 1
-);
-
-has td_user => (
-    is      => 'ro',
-    isa     => sub { ref $_[0] eq 'HASH' or croak "wrong type for td_user" },
-    lazy    => 1,
-    builder => '_build_td_user',
-    writer  => 'set_td_user',
-);
-
-sub _build_td_user {
-    my $self = shift;
-
-    $self->login();
-}
-
-sub token {
-    my $self = shift;
-
-    return $self->td_user->{api_token};
-}
-
-sub login {
-    my $self = shift;
-
-    my $passwd = read_password();
-
-    my $login = $self->POST({
-        cmd      => 'login',
-        params   => { email => $self->email, password => $passwd },
-        no_token => 1,
-    });
-
-    $login->[0] == 200 or croak 'login failed';
-
-    return $login->[1];
-}
-
-sub login_google {
-    my $self = shift;
-    my $args = shift;
-
-    my $oauth2_token = $args->{oauth2_token} || return;
-
-    my $params = {
-        email        => $self->email,
-        oauth2_token => $oauth2_token,
-      ( auto_signup  => $args->{auto_signup} )x!! exists $args->{auto_signup},
-      ( full_name    => $args->{full_name}   )x!! exists $args->{full_name},
-      ( timezone     => $args->{timezone}    )x!! exists $args->{timezone},
-      ( lang         => $args->{lang}        )x!! exists $args->{lang},
-    };
-
-    my $login = $self->POST({
-        cmd      => 'loginWithGoogle',
-        params   => $params,
-        no_token => 1,
-    });
-
-    $login->[0] == 200 or croak 'login failed';
-
-    $self->set_td_user( $login->[1] );
-    return 1;
-}
-
-sub register_user {
-    my $self = shift;
-    my $args = shift;
-    ref $args eq 'HASH' or croak "register_user args can only be a hash";
-
-    my $email = $args->{email};
-    $email or croak "register_user requires an email";
-
-    my $name = $args->{name};
-    $name or croak "register_user requires a full name";
-
-    my $passwd = read_password();
-
-    my $params = {
-        email     => $self->email,
-        password  => $passwd,
-        full_name => $name,
-      ( lang      => $args->{lang}     )x!! $args->{lang},
-      ( timezone  => $args->{timezone} )x!! $args->{timezone},
-    };
-
-    return $self->POST({
-        cmd      => 'register',
-        params   => $params,
-        no_token => 1,
-    });
-}
-
 sub delete_user {
     my $self = shift;
     my $args = shift;
@@ -121,6 +24,7 @@ sub delete_user {
     };
 
     return $self->POST({
+        token       => $self->api_token,
         cmd         => 'deleteUser',
         params      => $params,
         status_only => 1,
@@ -149,6 +53,7 @@ sub update_user {
     };
 
     return $self->POST({
+        token  => $self->api_token,
         cmd    => 'updateUser',
         params => $params,
     });
@@ -167,11 +72,12 @@ sub update_avatar {
     # TODO: check: image must be encoded data with multipart/form-data, max 2MB
 
     my $params = {
-        ( image  => $image  )x!! $image,
-        ( delete => $delete )x!! $delete,
+      ( image  => $image  )x!! $image,
+      ( delete => $delete )x!! $delete,
     };
 
     return $self->POST({
+        token  => $self->api_token,
         cmd    => 'updateAvatar',
         params => $params,
     });
@@ -181,6 +87,7 @@ sub ping {
     my $self = shift;
 
     my $status = $self->GET({
+        token       => $self->api_token,
         cmd         => 'ping',
         status_only => 1,
     });
@@ -191,13 +98,19 @@ sub ping {
 sub productivity_stats {
     my $self = shift;
 
-    return $self->GET({ cmd => 'getProductivityStats' });
+    return $self->GET({
+        token => $self->api_token,
+        cmd   => 'getProductivityStats'
+    });
 }
 
 sub notification_settings {
     my $self = shift;
 
-    return $self->GET({ cmd => 'getNotificationSettings' });
+    return $self->GET({
+        token => $self->api_token,
+        cmd   => 'getNotificationSettings'
+    });
 }
 
 {
@@ -242,6 +155,7 @@ sub notification_settings {
         };
 
         return $self->POST({
+            token       => $self->api_token,
             cmd         => 'updateNotificationSetting',
             params      => $params,
             status_only => 1,

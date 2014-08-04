@@ -18,6 +18,7 @@ sub tasks_by_id {
     grep { !/$re_num/ } @$ids and return;
 
     return $self->POST({
+        token  => $self->api_token,
         cmd    => 'getItemsById',
         params => { ids => encode_json $ids },
     });
@@ -43,6 +44,7 @@ sub add_task {
     };
 
     my $add = $self->POST({
+        token  => $self->api_token,
         cmd    => 'addItem',
         params => $params
     });
@@ -75,6 +77,7 @@ sub delete_tasks {
     }
 
     my $status = $self->POST({
+        token       => $self->api_token,
         cmd         => 'deleteItems',
         params      => { ids => encode_json $ids },
         status_only => 1,
@@ -95,12 +98,13 @@ sub update_task {
     exists $args->{id} or return;
 
     my $params = {
-        id    => $args->{id},
+        id      => $args->{id},
       ( content => $args->{content} )x!! $args->{content},
         $self->_optional_task_params($args),
     };
 
     my $update = $self->POST({
+        token  => $self->api_token,
         cmd    => 'updateItem',
         params => $params,
     });
@@ -135,6 +139,7 @@ sub move_tasks {
     };
 
     my $status = $self->POST({
+        token       => $self->api_token,
         cmd         => 'moveItems',
         params      => $params,
         status_only => 1,
@@ -165,6 +170,7 @@ sub update_tasks_order {
     };
 
     my $status = $self->POST({
+        token       => $self->api_token,
         cmd         => 'updateOrders',
         params      => $params,
         status_only => 1,
@@ -190,6 +196,7 @@ sub update_tasks_recurring_date {
     };
 
     return $self->POST({
+        token  => $self->api_token,
         cmd    => 'updateRecurringDate',
         params => $params,
     });
@@ -234,6 +241,7 @@ sub _complete_tasks {
     }
 
     my $status = $self->POST({
+        token       => $self->api_token,
         cmd         => $cmd,
         params      => { ids => encode_json $ids },
         status_only => 1,
@@ -248,7 +256,7 @@ sub _complete_tasks {
 sub _optional_task_params {
     my $self = shift;
     my $args = shift;
-
+    ref $args eq 'HASH' or return;
 
     return (
       ( date_string => $args->{date_string} )x!! $args->{date_string},

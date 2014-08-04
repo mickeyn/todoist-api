@@ -7,13 +7,9 @@ use HTTP::Tiny;
 use Try::Tiny;
 use JSON::MaybeXS  qw( decode_json );
 
-BEGIN {
-    with qw/ Todoist::API::Role::Account
-             Todoist::API::Role::Project
-             Todoist::API::Role::Task
-             Todoist::API::Role::Premium
-           /;
-}
+use Todoist::Utils qw( read_password );
+
+use Todoist::API::User;
 
 my $base_url = 'https://api.todoist.com/API/';
 
@@ -27,10 +23,98 @@ sub _build_ua {
     HTTP::Tiny->new( keep_alive => 1 );
 }
 
+# TODO: BUILDARGS? check args
+
 sub get_timezones {
     my $self = shift;
 
-    return $self->GET({ cmd => 'getTimezones', no_token => 1 });
+    return $self->GET({ cmd => 'getTimezones' });
+}
+
+sub login {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or croak 'args to login must be a hash';
+
+    my $email = $args->{email} || $args->{user};
+    $email or croak 'login must receive an email/user as a param';
+
+    $args->{google} and return $self->login_google($args);
+
+    my $passwd = read_password();
+
+    my $login = $self->POST({
+        cmd    => 'login',
+        params => { email => $email, password => $passwd },
+    });
+
+    return $self->return_user( $login );
+}
+
+sub login_google {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or croak 'args to login_google must be a hash';
+
+    my $email = $args->{email} || $args->{user};
+    $email or croak 'login must receive an email/user as a param';
+
+    my $oauth2_token = $args->{oauth2_token} || return;
+
+    my $params = {
+        email        => $email,
+        oauth2_token => $oauth2_token,
+      ( auto_signup  => $args->{auto_signup} )x!! exists $args->{auto_signup},
+      ( full_name    => $args->{full_name}   )x!! exists $args->{full_name},
+      ( timezone     => $args->{timezone}    )x!! exists $args->{timezone},
+      ( lang         => $args->{lang}        )x!! exists $args->{lang},
+    };
+
+    my $login = $self->POST({
+        cmd    => 'loginWithGoogle',
+        params => $params,
+    });
+
+    return $self->return_user( $login );
+}
+
+# TODO: make register_user also return a user? (or stick to the API output)
+sub return_user {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or croak 'args to retrun_user must be a hash';
+
+    return Todoist::API::User->new({
+        api => $self,
+        %{ $args },
+    });
+}
+
+sub register_user {
+    my $self = shift;
+    my $args = shift;
+    ref $args eq 'HASH' or croak "register_user args can only be a hash";
+
+    my $email = $args->{email};
+    $email or croak "register_user requires an email";
+
+    my $name = $args->{name};
+    $name or croak "register_user requires a full name";
+
+    my $passwd = read_password();
+
+    my $params = {
+        email     => $email,
+        password  => $passwd,
+        full_name => $name,
+      ( lang      => $args->{lang}     )x!! $args->{lang},
+      ( timezone  => $args->{timezone} )x!! $args->{timezone},
+    };
+
+    return $self->POST({
+        cmd    => 'register',
+        params => $params,
+    });
 }
 
 =item GET
@@ -43,8 +127,6 @@ Taking a hash as an arguemnt, supports the following keys:
   params      => GET URL params as a string.
   status_only => if positive, tells method to return result status
                  instead of the decoded content result.
-  no_token    => if positive, tells method to not add token as a
-                 URL param (added by default)
 }
 
 In case called with a string as argument, will treat it as 'cmd'
@@ -67,8 +149,6 @@ Taking a hash as an arguemnt, supports the following keys:
   params      => GET URL params as a string.
   status_only => if positive, tells method to return result status
                  instead of the decoded content result.
-  no_token    => if positive, tells method to not add token as a
-                 URL param (added by default)
 }
 
 In case called with a string as argument, will treat it as 'cmd'
@@ -94,33 +174,40 @@ sub _fetch {
     my $cmd = $args->{cmd};
     $cmd or croak "$type must have a 'cmd' argument";
 
+    my $params = $args->{params} || {};
+    ref $params eq 'HASH' or croak 'params must be a hash';
+
+    $args->{token} and $params->{token} = $args->{token};
+
     my $result;
 
     if ( $type eq 'GET' ) {
         my $url_params = '';
-        $args->{no_token} or $url_params .= 'token=' . $self->token;
-        $args->{params}  and $url_params .= '&' . $args->{params};
+        for ( keys %{ $params } ) {
+            $url_params .= '&' . "$_=" . $params->{$_};
+        }
 
-        $url_params and $url_params =~ s/^/\?/;
+        $url_params and $url_params =~ s/^\&?/\?/;
 
         $result = $self->ua->get( $base_url . $cmd . $url_params );
 
     } else { # POST
-        $args->{no_token} or $args->{params}{token} = $self->token;
-
         $result = $self->ua->post_form(
             $base_url . $cmd,
-            $args->{params},
+            $params,
         );
     }
 
-    $args->{status_only} and return [ $result->{status} ];
+    $args->{status_only} and return $result->{status};
+
+    $result->{status} == 200 or
+        ( carp "$cmd failed with exit-stats = " . $result->{status} and return );
 
     my $decoded_result;
     try   { $decoded_result = decode_json $result->{content} }
     catch { croak "$cmd failed" };
 
-    return [ $result->{status}, $decoded_result ];
+    return $decoded_result;
 }
 
 

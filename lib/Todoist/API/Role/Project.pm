@@ -33,7 +33,10 @@ has _pname2tasks => (
 sub _build_projects {
     my $self = shift;
 
-    return $self->GET({ cmd => 'getProjects' });
+    return $self->GET({
+        token => $self->api_token,
+        cmd   => 'getProjects'
+    });
 }
 
 sub _build_name2project {
@@ -52,8 +55,9 @@ sub project {
     my $id = $self->project_name2id($name);
 
     return $self->GET({
+        token  => $self->api_token,
         cmd    => 'getProject',
-        params => "project_id=$id",
+        params => { project_id => $id },
     });
 }
 
@@ -70,6 +74,7 @@ sub add_project {
     };
 
     my $add = $self->POST({
+        token  => $self->api_token,
         cmd    => 'addProject',
         params => $params
     });
@@ -93,6 +98,7 @@ sub update_project {
     };
 
     my $update = $self->POST({
+        token  => $self->api_token,
         cmd    => 'updateProject',
         params => $params
     });
@@ -115,6 +121,7 @@ sub update_project_orders {
     }
 
     my $status = $self->POST({
+        token       => $self->api_token,
         cmd         => 'updateProjectOrders',
         params      => { item_id_list => encode_json $ids },
         status_only => 1,
@@ -133,8 +140,9 @@ sub delete_project {
     $self->_project_add_id_if_name($args);
 
     my $status = $self->GET({
-        cmd    => 'deleteProject',
-        params => 'project_id=' . $args->{id},
+        token       => $self->api_token,
+        cmd         => 'deleteProject',
+        params      => { project_id => $args->{id} },
         status_only => 1,
     });
 
@@ -176,8 +184,9 @@ sub _refresh_project_tasks {
     }
 
     my $tasks = $self->GET({
+        token  => $self->api_token,
         cmd    => 'getUncompletedItems',
-        params => "project_id=$id",
+        params => { project_id => $id },
     });
 
     $self->_pname2tasks->{$name} = $tasks;
@@ -216,6 +225,7 @@ sub _project_add_id_if_name {
 sub _optional_project_params {
     my $self = shift;
     my $args = shift;
+    ref $args eq 'HASH' or return;
 
     return (
         ( color  => $args->{color}  )x!! $args->{color},

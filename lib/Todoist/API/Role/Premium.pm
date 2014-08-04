@@ -13,8 +13,9 @@ sub archive_project {
     $self->_project_add_id_if_name($args);
 
     return $self->GET({
+        token  => $self->api_token,
         cmd    => 'archiveProject',
-        params => 'project_id=' . $args->{id}
+        params => { project_id => $args->{id} },
     });
 }
 
@@ -30,15 +31,19 @@ sub unarchive_project {
     ( $id and $id =~ /$re_num/ ) or return;
 
     return $self->GET({
+        token  => $self->api_token,
         cmd    => 'unarchiveProject',
-        params => "project_id=$id",
+        params => { project_id => $id },
     });
 }
 
 sub get_archived_projects {
     my $self = shift;
 
-    return $self->GET({ cmd => 'getArchived' });
+    return $self->GET({
+        token => $self->api_token,
+        cmd   => 'getArchived'
+    });
 }
 
 sub get_all_completed_tasks {
@@ -61,6 +66,7 @@ sub get_all_completed_tasks {
     };
 
     return $self->POST({
+        token  => $self->api_token,
         cmd    => 'getAllCompletedItems',
         params => $params,
     });
