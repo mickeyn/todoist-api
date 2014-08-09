@@ -3,15 +3,17 @@ package Todoist::API;
 use Moo;
 use Carp;
 
-use HTTP::Tiny;
 use Try::Tiny;
+use HTTP::Tiny;
 use JSON::MaybeXS  qw( decode_json );
-
 use Todoist::Utils qw( read_password );
-
 use Todoist::API::User;
 
 my $base_url = 'https://api.todoist.com/API/';
+
+has [ qw<email password> ] => (
+    is => 'ro',
+);
 
 has ua => (
     is      => 'ro',
@@ -23,32 +25,50 @@ sub _build_ua {
     HTTP::Tiny->new( keep_alive => 1 );
 }
 
+# alias to 'email'
+sub username { shift->email }
+
+sub _login {
+    my ( $self, $email, $password ) = @_;
+
+    $email && $password
+        or die "Missing username/email and/or password\n";
+
+    my $args = $self->POST( {
+        cmd    => 'login',
+        params => { email => $email, password => $password },
+    } );
+
+    # TODO: make register_user also return a user? (or stick to the API output)
+    return Todoist::API::User->new({
+        api => $self,
+        %{ $args },
+    });
+
+}
+
+sub BUILDARGS {
+    my ( $class, @args ) = @_;
+
+    my %args = @args % 2 ? %{ $args[0] } : @args;
+
+    $args{'username'}
+        and $args{'email'} = delete $args{'username'};
+
+    return \%args;
+}
+
+sub login {
+    my $self = shift;
+    return $self->_login( $self->email, $self->password );
+}
+
 # TODO: BUILDARGS? check args
 
 sub get_timezones {
     my $self = shift;
 
     return $self->GET({ cmd => 'getTimezones' });
-}
-
-sub login {
-    my $self = shift;
-    my $args = shift;
-    ref $args eq 'HASH' or croak 'args to login must be a hash';
-
-    my $email = $args->{email} || $args->{user};
-    $email or croak 'login must receive an email/user as a param';
-
-    $args->{google} and return $self->login_google($args);
-
-    my $passwd = read_password();
-
-    my $login = $self->POST({
-        cmd    => 'login',
-        params => { email => $email, password => $passwd },
-    });
-
-    return $self->return_user( $login );
 }
 
 sub login_google {
@@ -75,18 +95,9 @@ sub login_google {
         params => $params,
     });
 
-    return $self->return_user( $login );
-}
-
-# TODO: make register_user also return a user? (or stick to the API output)
-sub return_user {
-    my $self = shift;
-    my $args = shift;
-    ref $args eq 'HASH' or croak 'args to retrun_user must be a hash';
-
     return Todoist::API::User->new({
         api => $self,
-        %{ $args },
+        %{$login},
     });
 }
 
