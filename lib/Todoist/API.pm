@@ -6,7 +6,6 @@ use Carp;
 use Try::Tiny;
 use HTTP::Tiny;
 use JSON::MaybeXS  qw( decode_json );
-use Todoist::Utils qw( read_password );
 use Todoist::API::User;
 
 my $base_url = 'https://api.todoist.com/API/';
@@ -60,7 +59,13 @@ sub BUILDARGS {
 
 sub login {
     my $self = shift;
-    return $self->_login( $self->email, $self->password );
+    my $args = shift || {};
+    ref $args eq 'HASH' or croak 'args to login must be in a hash';
+
+    my $email    = $args->{email}    || $self->email;
+    my $password = $args->{password} || $self->password;
+
+    return $self->_login( $email, $password );
 }
 
 # TODO: BUILDARGS? check args
@@ -112,11 +117,12 @@ sub register_user {
     my $name = $args->{name};
     $name or croak "register_user requires a full name";
 
-    my $passwd = read_password();
+    my $password = $args->{password};
+    $password or croak "register_user requires a password";
 
     my $params = {
         email     => $email,
-        password  => $passwd,
+        password  => $password,
         full_name => $name,
       ( lang      => $args->{lang}     )x!! $args->{lang},
       ( timezone  => $args->{timezone} )x!! $args->{timezone},
